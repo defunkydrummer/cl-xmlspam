@@ -1,0 +1,87 @@
+
+(with-xspam-source "<?xml version=\"1.0\"?> <a> <b>hello there</b> <b>goodbye</b><e/> <p>345x675 234x754 786x532</p> <q when=\"23-11-2008\"/></a>"
+    (element :a
+      (group
+        (one-or-more
+          (element :b (text (matches "[^ ]+" (format t "word ~s~%" _)))))
+        (element :p
+          (text
+            (matches "([0-9]+)x([0-9]+)"
+              (format t "got point [~s ~s]~%" (_ 0) (_ 1)))))
+        (element :q
+          (attribute :when
+            (match "([0-9]+)-([0-9]+)-([0-9]+)"
+              (format t "got date ~s/~s/~s~%" (_ 0) (_ 1) (_ 2))))))))
+
+
+(defparameter
+ *ns*
+ '(
+   (nil . "http://www.ordnancesurvey.co.uk/xml/namespaces/osgb")
+   (xsi . "http://www.w3.org/2001/XMLSchema-instance")
+   (gml . "http://www.opengis.net/gml")
+   (xlink . "http://www.w3.org/1999/xlink")
+   (none . nil)))
+
+(with-namespace *ns*
+    (with-xspam-source #P"tst.xml"
+      (element |FeatureCollection|
+
+        (element :gml.bounded-by (format t "got bounded-by~%"))
+        (element :query-time (text (format t "query-time: ~a~%" _)))
+        (zero-or-more
+          (one-of
+            (element :network-member
+              (element "FerryLink"
+                (element :descriptive-group (text (format t "member type: ~a~%" _)))
+                (one-or-more
+                  (element :directed-node
+                    (attribute :none.orientation (format t "orientation ~a~%" _))
+                    (attribute :xlink.href (format t "link ~a~%" _)))))))))))
+
+(with-xspam-source #P"mastermap\\tst2.xml"
+    (with-namespace *ns*
+       (element |networkMember|
+         (optional
+           (one-of
+             (element |RoadLink|
+               (attribute |none:fid|
+                 (match "[0-9]+"
+                       (format t "got RoadLink ~s~%" _)
+                       (group
+                         (element |descriptiveGroup| (text))
+                         (element |descriptiveTerm| (text))
+                         (element |natureOfRoad| (text))
+                         (element |length| (text))
+                         (element |polyline|
+                           (element |gml:LineString|
+                             (element |gml:coordinates|
+                               (text
+                                 (matches "([0-9]+(\.[0-9]*)?),([0-9]+(\.[0-9]*)?)"
+                                   (format t "got coord ~s ~s~%" (_ 0) (_ 2)))))))
+                         (one-or-more
+                           (element |directedNode|
+                               (format t "found directedNode~%")
+                               (attribute |none:orientation|
+                                 (format t "orientation ~s~%" _))
+                               (attribute |xlink:href|
+                                 (match "#osgb([0-9]+)"
+                                   (format t "link ~s~%" (_ 0)))))))))))))))
+(defparameter *tstxml*
+ "<?xml version=\"1.0\"?>
+ <a>
+ 	<b>
+ 		<c>
+ 			<d>in d</d>
+ 		</c>
+ 		<c2>hello two</c2>
+ 		<d>goodbye</d>
+ 	</b>
+ 	<e>in e</e>
+ </a>")
+
+(with-xspam-source *tstxml*
+  (element :a
+    (element :b
+      (element :c)
+      (format t "after c, peek -> ~a~%" (xspam::current-info (xspam-source))))))
